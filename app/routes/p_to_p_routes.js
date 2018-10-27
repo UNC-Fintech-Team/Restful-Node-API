@@ -1,5 +1,5 @@
-var MongoClient = require('mongodb').MongoClient;
-var uri = 'mongodb+srv://andrewmckinnon2:Pass@4wed123!!!@lindrcluster-ifwaa.gcp.mongodb.net/test?retryWrites=true';
+//var MongoClient = require('mongodb').MongoClient;
+//var uri = 'mongodb+srv://andrewmckinnon2:Pass@4wed123!!!@lindrcluster-ifwaa.gcp.mongodb.net/test?retryWrites=true';
 
 module.exports = function(app, db) {
   app.get('/notes', (req, res) => {
