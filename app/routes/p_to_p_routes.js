@@ -231,8 +231,8 @@ module.exports = function(app, db) {
 
          //update status of loan in loans_collection
          await loans_collection.updateOne(
-           {_id:loan_id},
-           {"loaner_id":user._id, "status": "matched"}
+           {"_id":loan_id},
+           {$set:{"loaner_id":user._id, "status": "matched"}}
          )
 
          //update status of loan in loaner node of user_collection
@@ -249,18 +249,19 @@ module.exports = function(app, db) {
           })
 
           //get unique id of loanee
-          let loan = await loans_collection.find({"_id":loan_id}).toArray()[0];
+          let loan_data = await loans_collection.find({"_id":loan_id}).toArray();
+          let loan = loan_data[0];
           let loanee_id = loan.loanee_id;
 
           //update loanee information to reflect the new loan match
           await user_collection.updateMany(
             {"_id":loanee_id},
             {$set:
-              {"loan_data$[element].status":"matched"
+              {"loan_data.$[element].status":"matched"
               }
             },
             {
-              arrayFilters:[{"element.uid":{$e:loan_id}}], multi:false
+              arrayFilters:[{"element.uid":{$eq:loan_id}}]
             }
           )
 
@@ -277,15 +278,164 @@ module.exports = function(app, db) {
 
    });
 
-   app.get('/matches', (req, res) => {
-     res.send('Hello');
+   app.get('/matches', async (req, res) => {
+     //API endpoint for getting all matched loans for a given user
+     let email = req.query.email;
+     let inputs = [email];
+
+     let not_null = check_for_nulls(inputs);
+
+     if(not_null){
+       await MongoClient.connect(uri, { useNewUrlParser: true }, async function(err, client){
+         if(err) throw err;
+         let db = client.db('lindr');
+         let user_collection = db.collection("Users");
+         let loan_collection = db.collection("Loans");
+
+         //get all loan ids associated with a given user that are matched.
+         let user = await user_collection.find({"email":email}).toArray();
+
+         let user_loans = user[0].loan_data;
+         let loan_ids = [];
+         for(let i=0; i<user_loans.length; i++){
+           if(user_loans[i].status == "matched"){
+             loan_ids.push(user_loans[i].uid);
+           }
+         }
+
+         //get all loans from loan_collection that have id from loan_ids
+         let matched_loans = await loan_collection.find({
+           "_id": { $in: loan_ids }
+         }).toArray();
+
+         //return array of matched loans to front end.
+         res.statusCode = 200;
+         res.send(matched_loans);
+       })
+     } else {
+       //return failure status code to front end if some vals are null
+       res.statusCode = 400;
+       res.send({error: "Some arguments sent in request are null"});
+     }
+
    });
 
-   app.get('/loans', (req, res) => {
-     res.send('Hello');
+   app.get('/complete', async (req, res) => {
+     //Endpoint for all completed loans for a user
+     let email = req.query.email;
+     let inputs = [email];
+
+     let not_null = check_for_nulls(inputs);
+
+     if(not_null){
+       await MongoClient.connect(uri, { useNewUrlParser: true }, async function(err, client){
+         if(err) throw err;
+         let db = client.db('lindr');
+         let user_collection = db.collection("Users");
+         let loan_collection = db.collection("Loans");
+
+         //get all loan ids associated with a given user that are matched.
+         let user = await user_collection.find({"email":email}).toArray();
+
+         let user_loans = user[0].loan_data;
+         let loan_ids = [];
+         for(let i=0; i<user_loans.length; i++){
+           if(user_loans[i].status == "complete"){
+             loan_ids.push(user_loans[i].uid);
+           }
+         }
+
+         //get all loans from loan_collection that have id from loan_ids
+         let matched_loans = await loan_collection.find({
+           "_id": { $in: loan_ids }
+         }).toArray();
+
+         //return array of matched loans to front end.
+         res.statusCode = 200;
+         res.send(matched_loans);
+       })
+     } else {
+       //return failure status code to front end if some vals are null
+       res.statusCode = 400;
+       res.send({error: "Some arguments sent in request are null"});
+     }
+   })
+
+   app.get('/pending', async (req, res) => {
+     //Endpoint for all pending loans for a user
+     let email = req.query.email;
+     let inputs = [email];
+
+     let not_null = check_for_nulls(inputs);
+
+     if(not_null){
+       await MongoClient.connect(uri, { useNewUrlParser: true }, async function(err, client){
+         if(err) throw err;
+         let db = client.db('lindr');
+         let user_collection = db.collection("Users");
+         let loan_collection = db.collection("Loans");
+
+         //get all loan ids associated with a given user that are matched.
+         let user = await user_collection.find({"email":email}).toArray();
+
+         let user_loans = user[0].loan_data;
+         let loan_ids = [];
+         for(let i=0; i<user_loans.length; i++){
+           if(user_loans[i].status == "pending"){
+             loan_ids.push(user_loans[i].uid);
+           }
+         }
+
+         //get all loans from loan_collection that have id from loan_ids
+         let matched_loans = await loan_collection.find({
+           "_id": { $in: loan_ids }
+         }).toArray();
+
+         //return array of matched loans to front end.
+         res.statusCode = 200;
+         res.send(matched_loans);
+       })
+     } else {
+       //return failure status code to front end if some vals are null
+       res.statusCode = 400;
+       res.send({error: "Some arguments sent in request are null"});
+     }
+   })
+
+   app.get('/unmatched_loans', async (req, res) => {
+     //API endpoint to get loans that have not yet been matched; should be used for giving users loan requests to swipe on
+     let email = req.query.email;
+
+     let inputs = [email];
+     let not_null = check_for_nulls(inputs);
+     if(not_null){
+       MongoClient.connect(uri, { useNewUrlParser: true }, async function(err, client) {
+         let db = client.db('lindr');
+         let user_collection = db.collection("Users");
+         let loan_collection = db.collection("Loans");
+
+         let user_arr = await user_collection.find({"email":email}).toArray();
+
+         if(user_arr.length != 1){
+           res.statusCode = 400;
+           res.send({error:"could not find user with email sent in request"});
+           return;
+         }
+         let user = user_arr[0];
+
+         let unmatched_loans = await loan_collection.find({"status":"pending"}).toArray();
+
+         res.statusCode = 200;
+         res.send(unmatched_loans);
+       });
+     } else {
+       res.statusCode = 400;
+       res.send({error:"Some parameters passed to this endpoint were null"});
+     }
+
+
+
    });
 
-   app.post('/loan', (req, res) => {
-     res.send('Hello');
-   });
+
 };
