@@ -1,0 +1,210 @@
+The following document describes the expected requests and responses for every endpoint of the lindr restful API. It will be organized by route name, expected request, and expected response. Note that for all of the endpoints described below, if an error occurs in processing the request, the status code of the response will be 400.
+
+
+PUT /user_creation:
+	expected request body:
+	{
+		fname:String
+		lname:String
+		email:string
+		pass:string
+		pmode:string
+		bio:string
+	}
+	For the json object described above, the following are descriptions of each of the fields:
+	fname - users first name
+	lname - users last name
+	email - users email
+	pass - users password
+	pmode - preferred user mode (lender or lender)
+	bio - users personal bio
+	
+	Expected response body (status code 200):
+	{
+		success:"User creation successful"
+	}
+
+GET /user_info:
+	expected request parameters:
+		email: string
+		pass: string
+	*Note that these should be passed as parameters in the header of the request and not the body
+	email - email
+	pass - password
+
+	Expected response body (status code 200):
+	{
+		_id:ObjectId(string),
+		first_name: string,
+		last_name: string,
+		password: string,
+		preferred_mode: string,
+		loan_data: [{uid:string, status:string, rule:string}],
+		bio:string
+	}
+	For the json object described above, the following are descriptions of each of the fields:
+	_id - object that uniquely identifies this document in db
+	first_name - user first name
+	last_name - users last name
+	password - users password (i know this is insecure - bare w/ me, limited time to build this lol)
+	preferred_mode - users preferred mode (lender or lender)
+	loan_data - array of loans associated with this user. uid is unique identifier of loan, status is either "pending" (no match, lendee has requested loan), "matched" (lender and lender have matched), or "complete" (loan has been fully paid back to lender by lendee. Lastly, role indicates the role that this user plays in this loan - can be either "lender" or "lender"
+	bio - users bio
+
+PUT /update_preferences
+	expected request body:
+	{
+		email: string,
+		pass: string,
+		pmode: string,
+		bio: string
+	}
+	For the json object described above, the following are descriptions of each of the fields:
+	email - user email
+	pass - user password
+	pmode - users preferred mode (lender/lendee)
+	bio - users personal bio
+
+	Expected response body (status code 200):
+		{success:"Successfully updated preferences"}
+
+
+PUT /make_loan_request
+	expected request body:
+	{
+		email:string,
+		pass:string,
+		quant:int,
+		interest:double,
+		purpose:string,
+		payment:string,
+		increments:int
+	}
+	For the json object described above, the following are descriptions of each of the fields:
+	email - user email
+	pass - user password
+	quantity - $ amount of loan requested by this user
+	interest - decimal value representing the TOTAL interest to be paid on the loan to the loaner
+	purpose - description of why user is requesting loan (what loan is going towards financing
+	payment - size of expected payments
+	increments - number of payments expected to be made totaling up to loan size + interest
+
+	Expected response body (status code 200):
+		{success:"Successfully created loan request"}
+
+PUT /make_match
+	expected request body:
+	{
+		loanId:string,
+		email:string
+	}
+	For the json object described above, the following are descriptions of each of the fields:
+	email - email of user who has accepted loan (this will be the loaner for this loan)
+	loanId - string that corresponds to unique id of loan that this user is matching on
+
+	Expected response body (status code 200):
+		{success:"successfully matched on loan"}
+
+GET /matches
+	expected request parameters:
+		email: string
+	*Note that this should be passed as parameters in the header of the request and not the body*
+	email corresponds to email of user who's matched loans we are getting
+	
+	Expected response body (status code 200):
+	[
+		{
+		
+			_id:string,
+			status:string,
+			quantity:int,
+			interest_rate:double,
+			purpose:string,
+			payment_play:string,
+			loanee_id:string,
+			loaner_id:string,
+			payment_increments:int,
+			payment_date:string
+			time_created:string
+		},...
+	]
+	The array above that is returned on successful requests is an array of loan objects that this user is currently matched on. These do not include those loans that are "pending" i.e. waiting for a match, or those loans that are "complete" i.e. have already been paid in full.
+
+
+GET /complete
+	expected request parameters:
+		email: string
+	*Note that this should be passed as parameters in the header of the request and not the body*
+	email corresponds to email of user who's completed loans we are getting
+
+	Expected response body (status code 200):
+		Expected response body (status code 200):
+	[
+		{
+		
+			_id:string,
+			status:string,
+			quantity:int,
+			interest_rate:double,
+			purpose:string,
+			payment_play:string,
+			loanee_id:string,
+			loaner_id:string,
+			payment_increments:int,
+			payment_date:string
+			time_created:string
+		},...
+	]
+	The array above that is returned on successful requests is an array of completed loan objects that this user is either a "loanee" or "loaner" on.
+
+GET /pending
+	expected request parameters:
+		email: string
+	*Note that this should be passed as parameters in the header of the request and not the body*
+	email corresponds to email of user who's pending loans we are getting
+
+	Expected response body (status code 200):
+		Expected response body (status code 200):
+	[
+		{
+		
+			_id:string,
+			status:string,
+			quantity:int,
+			interest_rate:double,
+			purpose:string,
+			payment_play:string,
+			loanee_id:string,
+			loaner_id:string,
+			payment_increments:int,
+			payment_date:string
+			time_created:string
+		},...
+	]
+	The array above that is returned on successful requests is an array of pending loan objects that this user is a "loanee" on. Means that these are all the loan requests the user currently has that have not been matched.
+
+GET /unmatched_loans
+		expected request parameters:
+		email: string
+	*Note that this should be passed as parameters in the header of the request and not the body*
+	email corresponds to email of user who's pending loans we are getting
+
+	Expected response body (status code 200):
+		Expected response body (status code 200):
+	[
+		{
+		
+			_id:string,
+			status:string,
+			quantity:int,
+			interest_rate:double,
+			purpose:string,
+			payment_play:string,
+			loanee_id:string,
+			loaner_id:string,
+			payment_increments:int,
+			payment_date:string
+			time_created:string
+		},...
+	]
+	The array above that is returned on successful requests is an array of loan objects that have not been fulfilled. This means loans from any user can be displayed. Idea behind this end point is to provide an array of loans that a loaner (on the app) can then swipe through to match or not match with.
